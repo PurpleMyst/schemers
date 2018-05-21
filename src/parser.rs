@@ -1,5 +1,7 @@
 use super::value::Value;
 
+use gc::GcCell;
+
 use nom::{multispace0, double};
 
 named!(pub value<Value>,
@@ -10,13 +12,13 @@ named!(string<Value>,
 
 // FIXME: Support numbers in identifiers.
 named!(symbol<Value>,
-    map!(many1!(one_of!("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-+")), |x| Value::Symbol(x.into_iter().collect())));
+    map!(many1!(one_of!("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-+?")), |x| Value::Symbol(x.into_iter().collect())));
 
 named!(number<Value>,
     map!(double, Value::Number));
 
 named!(sexpr<Value>,
-    map!(delimited!(char!('('), many0!(delimited!(multispace0, value, multispace0)), char!(')')), Value::SExpr));
+    map!(delimited!(char!('('), many0!(delimited!(multispace0, value, multispace0)), char!(')')), |v| Value::SExpr(v.into_iter().map(GcCell::new).collect())));
 
 #[cfg(test)]
 mod tests {
