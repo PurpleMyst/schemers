@@ -10,12 +10,59 @@ pub struct Scope {
     parent: Option<Box<Scope>>,
 }
 
-mod scm_prelude {}
-
 impl Scope {
     pub fn prelude() -> Self {
+        let mut variables = HashMap::new();
+
+        // NB: Only fundamental forms should be defined via this macro. Once I get the interpreter
+        // to a more usable state, I plan on having a `prelude.scm` file.
+        macro_rules! prelude_function {
+            ($name:expr => $func:expr) => {
+                assert!(
+                    variables
+                        .insert(
+                            String::from($name),
+                            GcCell::new(Value::FundamentalForm {
+                                name: $name,
+                                func: Box::new($func)
+                            })
+                        )
+                        .is_none()
+                );
+            };
+        }
+
+        prelude_function!("if" => |scope, args| {
+            assert_eq!(args.len(), 3);
+
+            let condition = {
+                let condition = scope.eval(&args[0]);
+                let condition_borrow = condition.borrow();
+                !(condition_borrow.eq(&Value::False))
+            };
+
+            if condition {
+                scope.eval(&args[1])
+            } else {
+                scope.eval(&args[2])
+            }
+        });
+
+        prelude_function!("eq?" => |scope, args| {
+            assert_eq!(args.len(), 2);
+
+            let x = scope.eval(&args[0]);
+            let y = scope.eval(&args[1]);
+
+            if x.borrow().eq(&y.borrow()) {
+                GcCell::new(Value::True)
+            } else {
+                GcCell::new(Value::False)
+            }
+        });
+
         Self {
-            variables: HashMap::new(),
+            variables,
             parent: None,
         }
     }
@@ -27,6 +74,7 @@ impl Scope {
         }
     }
 
+    #[allow(dead_code)]
     pub fn exit_sub_scope(self) -> Option<Self> {
         self.parent.map(|b| *b)
     }
@@ -41,8 +89,10 @@ impl Scope {
     }
 
     pub fn eval(&mut self, value: &GcCell<Value>) -> GcCell<Value> {
-        match &*value.borrow_mut() {
-            Value::Number(..) | Value::String(..) => value.clone(),
+        match &*value.borrow() {
+            // XXX: We can probably avoid a clone here if we use a `Cow`. The question is, do we
+            // want to?
+            Value::Number(..) | Value::String(..) | Value::True | Value::False => value.clone(),
 
             Value::Symbol(s) => {
                 if let Some(result) = self.eval_symbol(&s) {
@@ -52,12 +102,23 @@ impl Scope {
                 }
             }
 
+            // XXX: Is this actually unreachable?
             Value::FundamentalForm { .. } => unreachable!("s/!/?"),
 
             Value::SExpr(contents) => {
                 let func = self.eval(&contents[0]);
+                let bfunc = func.borrow();
 
-                match func {
+                match &*bfunc {
+                    Value::FundamentalForm {
+                        func: actual_func, ..
+                    } => {
+                        // XXX: This is inefficient as hell, probably, We can do this in a better
+                        // way, somehow.
+                        // XXX: Do we need to enter a scope here?
+                        actual_func(self, contents.iter().map(Clone::clone).skip(1).collect())
+                    }
+
                     _ => panic!("Tried to call {:?}", func),
                 }
             }
