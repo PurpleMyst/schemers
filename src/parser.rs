@@ -81,14 +81,14 @@ mod tests {
                 .unwrap()
                 .1,
             Value::SExpr(vec![
-                Value::Symbol("print".to_owned()),
-                Value::Number(-5.123e3),
-                Value::String("hello, world".to_owned()),
-                Value::SExpr(vec![
-                    Value::Symbol("add".to_owned()),
-                    Value::Number(41f64),
-                    Value::Number(1f64),
-                ]),
+                GcCell::new(Value::Symbol("print".to_owned())),
+                GcCell::new(Value::Number(-5.123e3)),
+                GcCell::new(Value::String("hello, world".to_owned())),
+                GcCell::new(Value::SExpr(vec![
+                    GcCell::new(Value::Symbol("add".to_owned())),
+                    GcCell::new(Value::Number(41f64)),
+                    GcCell::new(Value::Number(1f64)),
+                ])),
             ])
         );
     }
