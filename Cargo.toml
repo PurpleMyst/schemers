@@ -1,6 +1,6 @@
 [package]
+authors = ["Purple Myst <PurpleMyst@users.noreply.github.com>"]
 name = "schemers"
 version = "0.1.0"
-authors = ["Purple Myst <PurpleMyst@users.noreply.github.com>"]
-
 [dependencies]
+nom = "4.0.0"
