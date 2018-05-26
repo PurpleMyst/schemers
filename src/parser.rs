@@ -28,6 +28,25 @@ named!(
 
 named!(number<Value>, map!(double, Value::Number));
 
+fn parse_fundamental_forms(contents: Vec<Value>) -> Value {
+    if contents.len() == 0 {
+        return Value::SExpr(Vec::new());
+    }
+
+    // FIXME: Avoid this clone!
+    let first = contents[0].clone();
+    let rest = contents.into_iter().map(GcCell::new);
+
+    if let Value::Symbol(s) = first {
+        match &s as &str {
+            "if" => return Value::If(rest.skip(1).collect()),
+            _ => {}
+        }
+    }
+
+    Value::SExpr(rest.collect())
+}
+
 named!(
     sexpr<Value>,
     map!(
@@ -36,7 +55,7 @@ named!(
             many0!(delimited!(multispace0, value, multispace0)),
             char!(')')
         ),
-        |v| Value::SExpr(v.into_iter().map(GcCell::new).collect())
+        parse_fundamental_forms
     )
 );
 

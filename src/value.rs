@@ -1,10 +1,6 @@
-use super::scope::Scope;
-
 use gc::GcCell;
 
-use std::fmt;
-
-#[derive(Clone, Finalize)]
+#[derive(Debug, Clone, Finalize)]
 pub enum Value {
     Number(f64),
 
@@ -12,16 +8,12 @@ pub enum Value {
 
     Symbol(String),
 
-    // XXX: Should we use `std::collections::LinkedList`?
     SExpr(Vec<GcCell<Value>>),
+
+    If(Vec<GcCell<Value>>),
 
     True,
     False,
-
-    FundamentalForm {
-        name: &'static str,
-        func: Box<fn(&mut Scope, Vec<GcCell<Value>>) -> GcCell<Value>>,
-    },
 }
 
 // XXX: I have zero idea if this is correct. The documentation about how to actually implement
@@ -30,9 +22,9 @@ macro_rules! derive_but_with_extra_steps {
     ($($name:ident),*) => {
         $(unsafe fn $name(&self) {
             match self {
-                Value::Number(..) | Value::String(..) | Value::Symbol(..) | Value::True | Value::False | Value::FundamentalForm{..} => {},
+                Value::Number(..) | Value::String(..) | Value::Symbol(..) | Value::True | Value::False  => {},
 
-                Value::SExpr(v) => v.iter().for_each(|i| i.$name()),
+                Value::SExpr(v)|Value::If(v) => v.iter().for_each(|i| i.$name()),
             }
         })*
     }
@@ -57,28 +49,6 @@ impl PartialEq for Value {
             (Value::True, Value::True) => true,
             (Value::False, Value::False) => true,
             _ => false,
-        }
-    }
-}
-
-impl fmt::Debug for Value {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Value::Number(n) => f.debug_tuple("Value::Number").field(&n).finish(),
-
-            Value::String(s) => f.debug_tuple("Value::String").field(&s).finish(),
-
-            Value::Symbol(s) => f.debug_tuple("Value::Symbol").field(&s).finish(),
-
-            Value::SExpr(v) => f.debug_tuple("Value::SExpr").field(&v).finish(),
-
-            Value::True => f.debug_tuple("Value::True").finish(),
-            Value::False => f.debug_tuple("Value::False").finish(),
-
-            Value::FundamentalForm { name, .. } => f
-                .debug_struct("Value::FundamentalForm")
-                .field("name", name)
-                .finish(),
         }
     }
 }
